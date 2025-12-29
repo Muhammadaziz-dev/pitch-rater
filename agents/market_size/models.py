@@ -14,45 +14,119 @@ class CompanyOverview(BaseModel):
     valuation: Optional[str] = Field(default=None, alias="Valuation", description="Company valuation")
     previous_rounds: Optional[List[Dict[str, str]]] = Field(default=None, alias="Previous Rounds", description="Previous funding rounds")
 
-class SectorInfo(TypedDict):
-    name: str
-    citation: List[str]
+class TargetMarketData(TypedDict):
+    primary_users: str
+    geography: str
+    secondary_users: str
+    citations: List[str]
 
-class MarketSizeInfo(TypedDict):
-    tam: str
-    citation: List[str]
+class MainProblemData(TypedDict):
+    pain_points: List[str]
+    citations: List[str]
 
 class CompetitorInfo(TypedDict):
     name: str
     description: str
-    citation: List[str]
+    citations: List[str]
+
+class UserSentimentData(TypedDict):
+    positive: List[str]
+    negative: List[str]
+    citations: List[str]
+
+class MarketSizeGrowthData(TypedDict):
+    market_size: str
+    growth_rate: str
+    growth_notes: str
+    citations: List[str]
+
+class PricingStrategyData(TypedDict):
+    competitor: str
+    pricing: str
+    notes: str
+    citations: List[str]
+
+class UniqueValueGapData(TypedDict):
+    gaps: List[str]
+    citations: List[str]
+
+class RisksChallengesData(TypedDict):
+    risks: List[str]
+    citations: List[str]
+
+class TrendsData(TypedDict):
+    trends: List[str]
+    citations: List[str]
 
 class MarketResearchData(TypedDict):
-    sector: SectorInfo
-    market_size: MarketSizeInfo
+    clarification_questions: List[str]
+    target_market: TargetMarketData
+    main_problem: MainProblemData
     competitors: List[CompetitorInfo]
+    user_sentiment: UserSentimentData
+    market_size_growth: MarketSizeGrowthData
+    pricing_strategies: List[PricingStrategyData]
+    unique_value_gap: UniqueValueGapData
+    risks_challenges: RisksChallengesData
+    trends: TrendsData
 
 class GraphState(TypedDict):
     input_overview: CompanyOverview
-    sector: Optional[SectorInfo]
-    market_size: Optional[MarketSizeInfo]
-    competitors: Optional[List[CompetitorInfo]]
+    market_research: Optional[MarketResearchData]
     error: Optional[str]
 
-class SectorModel(BaseModel):
-    name: str
-    citation: List[str]
+class TargetMarketModel(BaseModel):
+    primary_users: str
+    geography: str
+    secondary_users: str
+    citations: List[str]
 
-class MarketSizeModel(BaseModel):
-    tam: str
-    citation: List[str]
+class MainProblemModel(BaseModel):
+    pain_points: List[str]
+    citations: List[str]
 
 class CompetitorModel(BaseModel):
     name: str
     description: str
-    citation: List[str]
+    citations: List[str]
+
+class UserSentimentModel(BaseModel):
+    positive: List[str]
+    negative: List[str]
+    citations: List[str]
+
+class MarketSizeGrowthModel(BaseModel):
+    market_size: str
+    growth_rate: str
+    growth_notes: str
+    citations: List[str]
+
+class PricingStrategyModel(BaseModel):
+    competitor: str
+    pricing: str
+    notes: str
+    citations: List[str]
+
+class UniqueValueGapModel(BaseModel):
+    gaps: List[str]
+    citations: List[str]
+
+class RisksChallengesModel(BaseModel):
+    risks: List[str]
+    citations: List[str]
+
+class TrendsModel(BaseModel):
+    trends: List[str]
+    citations: List[str]
 
 class MarketResearchResponse(BaseModel):
-    sector: SectorModel
-    market_size: MarketSizeModel
+    clarification_questions: List[str]
+    target_market: TargetMarketModel
+    main_problem: MainProblemModel
     competitors: List[CompetitorModel]
+    user_sentiment: UserSentimentModel
+    market_size_growth: MarketSizeGrowthModel
+    pricing_strategies: List[PricingStrategyModel]
+    unique_value_gap: UniqueValueGapModel
+    risks_challenges: RisksChallengesModel
+    trends: TrendsModel

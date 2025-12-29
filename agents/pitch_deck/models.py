@@ -76,6 +76,7 @@ class GraphState(TypedDict):
     current_index: int
     summary: Optional[str]
     scorecard: Optional[str]
+    overall_score: Optional[int]
     slide_content: Optional[List[SlideContent]]
 
 class ProcessSlideResponse(BaseModel):

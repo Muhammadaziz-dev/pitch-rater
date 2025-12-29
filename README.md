@@ -70,6 +70,7 @@ Add your API keys to .env (Gemini-only setup):
 - `TEXT_MODEL` (e.g., `gemini-1.5-pro`)
 - `VISION_MODEL` (e.g., `gemini-1.5-flash`)
 - `EMBEDDINGS_MODEL` (e.g., `text-embedding-004`)
+- `MARKET_MODEL` (optional, use a faster model like `gemini-2.5-flash` for market research)
 - `SPEECH_LANGUAGE` (optional, default `en-US`)
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to GCP service account JSON for Speech-to-Text)
 
@@ -79,6 +80,7 @@ GOOGLE_API_KEY=your_gemini_key
 TEXT_MODEL=gemini-2.5-pro
 VISION_MODEL=gemini-2.5-flash
 EMBEDDINGS_MODEL=text-embedding-004
+MARKET_MODEL=gemini-2.5-flash
 SPEECH_LANGUAGE=en-US
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 ```
@@ -262,6 +264,126 @@ curl -X POST "http://localhost:8000/analyze-video-pitch" \
 curl -X POST "http://localhost:8000/analyze-video-pitch-text" \
   -H "Content-Type: application/json" \
   -d '{"transcript":"We are building..."}'
+```
+
+### Example Responses
+
+`POST /analyze-pitch-deck` (trimmed)
+```json
+{
+  "summary": {
+    "Company Overview": {
+      "Company Name": "Acme",
+      "What the Company Does": "B2B logistics platform for SMBs"
+    }
+  },
+  "scorecard": [
+    {"category": "Team", "score": 7, "justification": "Founders have domain expertise."},
+    {"category": "Market", "score": 6, "justification": "TAM is stated but unclear method."}
+  ],
+  "overall_score": 65
+}
+```
+
+`POST /analyze-video-pitch` (trimmed)
+```json
+{
+  "transcript": "We help SMBs ship faster...",
+  "analysis": {
+    "summary": "Acme targets SMB logistics with a unified platform...",
+    "strengths": ["Clear problem framing", "Large addressable market"],
+    "weaknesses": ["Limited traction evidence", "Differentiation unclear"],
+    "overall_score": 72,
+    "idea_filter": {
+      "problem": "Slow SMB logistics",
+      "for_who": "Small and mid-size retailers",
+      "why_now": "Post-pandemic logistics volatility",
+      "why_you": "Team built logistics ops at X",
+      "differentiation": "Unified routing + inventory",
+      "weak_points": ["No proof of demand"]
+    },
+    "investor_modes": {
+      "seed_investor": {"hard_questions": ["How will you acquire first 100 customers?"]},
+      "vc_investor": {"hard_questions": ["What is the path to $100M ARR?"]},
+      "angel_investor": {"hard_questions": ["Why are you the right team?"]},
+      "demo_day": {"hard_questions": ["What traction can you show?"]}
+    },
+    "skepticism_flags": [
+      {"sentence": "We will reach 1M users in a year", "reason": "No distribution plan shown"}
+    ],
+    "ratings": {
+      "problem_severity": 7,
+      "market_size_logic": 6,
+      "differentiation": 6,
+      "scalability": 7,
+      "pitch_clarity": 8
+    },
+    "filter_ai_score": 72,
+    "investor_ready_status": "Investor ready"
+  }
+}
+```
+
+`POST /analyze-market-size` (trimmed)
+```json
+{
+  "market_research": {
+    "clarification_questions": [
+      "What customer segment is the initial focus (B2B vs B2C)?"
+    ],
+    "target_market": {
+      "primary_users": "College students and professionals (18-35)",
+      "geography": "North America and Western Europe",
+      "secondary_users": "Schools and corporate training programs",
+      "citations": ["https://example.com/market-report"]
+    },
+    "main_problem": {
+      "pain_points": [
+        "Limited speaking practice",
+        "Generic lesson plans"
+      ],
+      "citations": ["https://example.com/user-reviews"]
+    },
+    "competitors": [
+      {
+        "name": "Duolingo",
+        "description": "Free, gamified learning with limited speaking depth",
+        "citations": ["https://example.com/duolingo"]
+      }
+    ],
+    "user_sentiment": {
+      "positive": ["Gamified lessons improve habit formation"],
+      "negative": ["Speaking exercises feel shallow"],
+      "citations": ["https://example.com/app-reviews"]
+    },
+    "market_size_growth": {
+      "market_size": "$12B global market (2023)",
+      "growth_rate": "18% CAGR",
+      "growth_notes": "Mobile-first learning is driving growth",
+      "citations": ["https://example.com/market-growth"]
+    },
+    "pricing_strategies": [
+      {
+        "competitor": "Babbel",
+        "pricing": "$6.95/month subscription",
+        "notes": "Discounted annual plans",
+        "citations": ["https://example.com/babbel-pricing"]
+      }
+    ],
+    "unique_value_gap": {
+      "gaps": ["Real-time conversational practice with feedback"],
+      "citations": ["https://example.com/feature-gap"]
+    },
+    "risks_challenges": {
+      "risks": ["Crowded market with high CAC"],
+      "citations": ["https://example.com/market-risk"]
+    },
+    "trends": {
+      "trends": ["AI conversation tutors", "Microlearning lessons"],
+      "citations": ["https://example.com/industry-trends"]
+    }
+  }
+}
 ```
 
 ---

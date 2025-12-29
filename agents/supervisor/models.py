@@ -15,9 +15,7 @@ from agents.pitch_deck.models import (
     SlideContent
 )
 from agents.market_size.models import (
-    SectorInfo,
-    MarketSizeInfo,
-    CompetitorInfo
+    MarketResearchData,
 )
 from agents.github_repo.models import ExtractSchema
 
@@ -31,9 +29,7 @@ class PitchDeckAnalysis(BaseModel):
 
 class MarketAnalysis(BaseModel):
     """Market analysis results"""
-    sector: Optional[SectorInfo] = Field(default=None)
-    market_size: Optional[MarketSizeInfo] = Field(default=None)
-    competitors: Optional[List[CompetitorInfo]] = Field(default=None)
+    market_research: Optional[MarketResearchData] = Field(default=None)
 
 class GitHubAnalysis(BaseModel):
     """GitHub repository analysis results"""
@@ -70,13 +66,12 @@ class GraphState(TypedDict):
     # Pitch deck analysis results
     summary: Optional[Dict]
     scorecard: Optional[List[Dict]]
+    overall_score: Optional[int]
     slide_content: Optional[List[SlideContent]]
     
     # Market analysis results
     market_analysis: Optional[Dict]
-    sector: Optional[SectorInfo]
-    market_size: Optional[MarketSizeInfo]
-    competitors: Optional[List[CompetitorInfo]]
+    market_research: Optional[MarketResearchData]
     
     # GitHub analysis results
     github_url: Optional[str]

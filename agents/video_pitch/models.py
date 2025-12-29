@@ -49,6 +49,20 @@ class RatingBreakdown(BaseModel):
     pitch_clarity: int = Field(ge=0, le=10)
 
 class VideoPitchAnalysis(BaseModel):
+    summary: str = Field(
+        description="Short 2-4 sentence summary of the pitch."
+    )
+    strengths: List[str] = Field(
+        description="Top strengths based on the pitch content."
+    )
+    weaknesses: List[str] = Field(
+        description="Top weaknesses based on the pitch content."
+    )
+    overall_score: int = Field(
+        ge=0,
+        le=100,
+        description="Overall investor score (0-100).",
+    )
     idea_filter: IdeaFilter
     investor_modes: InvestorModes
     skepticism_flags: List[SkepticismFlag]

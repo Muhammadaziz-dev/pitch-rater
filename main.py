@@ -101,11 +101,8 @@ async def analyze_complete(file: UploadFile = File(...)) -> Dict[str, Any]:
         out = {
             'summary': result['summary'],
             'scorecard': result['scorecard'],
-            'market_research': {
-                'sector': result['sector'],
-                'market_size': result['market_size'],
-                'competitors': result['competitors'],
-            }
+            'overall_score': result.get('overall_score', 0),
+            'market_research': result.get('market_research')
         }
         if result['github_url']:
             out['github_details'] = result['github_details']
@@ -150,6 +147,7 @@ async def analyze_pitch_deck(file: UploadFile = File(...)) -> Dict[str, Any]:
         return {
             'scorecard': response['scorecard'],
             'summary': response['summary'],
+            'overall_score': response.get('overall_score', 0),
         }
     else:
         raise HTTPException(
@@ -178,11 +176,7 @@ async def analyze_market_size(company_overview: dict) -> Dict[str, Any]:
         kwargs, run_id = await handle_market_size(company_overview)
         market_analysis = market_research_agent.invoke(**kwargs)
         return {
-            'market_research': {
-                'sector': market_analysis['sector'].name,
-                'market_size': market_analysis['market_size'],
-                'competitors': market_analysis['competitors'],
-            },
+            'market_research': market_analysis.get('market_research'),
         }
     except Exception as e:
         raise HTTPException(

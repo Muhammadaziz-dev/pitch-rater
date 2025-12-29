@@ -9,6 +9,7 @@ def analyze_video_pitch(state: GraphState) -> Union[GraphState, dict]:
         analysis = analyze_transcript(state["transcript"])
         score = _calculate_filter_score(analysis)
         analysis.filter_ai_score = score
+        analysis.overall_score = score
         analysis.investor_ready_status = "Investor ready" if score >= 70 else "Not ready"
         state["analysis"] = analysis.model_dump()
         return state

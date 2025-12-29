@@ -206,6 +206,10 @@ You are an investor panel analyzing a startup pitch video transcript.
 Use only the transcript. If something is missing, respond with \"Not stated\" and include the weakness in weak_points.
 
 Return JSON with:
+- summary: 2-4 sentence summary of the pitch
+- strengths: 3-6 strengths
+- weaknesses: 3-6 weaknesses
+- overall_score: placeholder 0 (will be computed)
 - idea_filter: problem, for_who, why_now, why_you, differentiation, weak_points
 - investor_modes: seed_investor, vc_investor, angel_investor, demo_day; each has hard_questions (5-7 each)
 - skepticism_flags: up to 8 sentences/claims that investors will challenge, with a brief reason
@@ -260,42 +264,74 @@ Startup Pitch Information:
 
 MARKET_RESEARCH_PROMPT = """
     You are an AI startup analyst with the ability to search the web and use other tools.
-    Your task is to determine the **sector**, **estimated market size**, and **key competitors** of a startup using the company’s overview data provided. 
-    Use external web search to enrich your understanding. Prioritize relevance and recent sources.
+    Your task is to perform evidence-backed, multi-source market research using the company overview.
 
-    Your task:
+    Research requirements:
+    - Question clarification: If key inputs are missing, include 3-6 clarification questions.
+    - Multi-source research: Use at least 3 distinct sources.
+    - Evidence-backed claims: Every section must include citations.
+    - Insight-focused output: Summarize key takeaways in concise bullets.
+    - Transparent citations: Provide source links per section.
 
-    1. Sector: What is the specific startup sector this company fits into (e.g., SaaS, Finance, ConsumerTech, ClimateTech, Fitness, Health, Marketplace)?
-    2. Market Size: Estimate the Total Addressable Market (TAM) as **narrowly and specifically** as possible, based on what the company actually does. Avoid using market size numbers for broad sectors unless justified. Instead, focus on the specific niche. Cite the source if available.
-    3. Competitors: List 3–5 competitors or similar platforms, preferably with a short note on how they compare (e.g., “offers broader mapping capabilities”, “focused on tourism”).
+    Key questions to answer:
+    1. What is the target market?
+    2. What is the main problem users face with current solutions?
+    3. Who are the major competitors?
+    4. What are users saying about current solutions (positive and negative)?
+    5. What is the market size and growth potential?
+    6. What pricing strategies are used by competitors?
+    7. What unique value or gap can the new app fill?
+    8. What are the risks or challenges to entering this market?
+    9. What are the trends in the industry?
 
-    Be concise but informative. Present your output as:
-
+    Return JSON with:
     {
-        "Sector": {
-            "name": "<sector name>",
-            "citation": ["<source link>"]
-        },
-        "Market Size": {
-            "tam": "<market size in USD>",
-            "citation": ["<source link>"]
-        },
-        "Competitors": [
-            {
-            "name": "",
-            "description": "",
-            "citation": ["<source link>"]
-            }
-        ]
+      "clarification_questions": [],
+      "target_market": {
+        "primary_users": "",
+        "geography": "",
+        "secondary_users": "",
+        "citations": []
+      },
+      "main_problem": {
+        "pain_points": [],
+        "citations": []
+      },
+      "competitors": [
+        {"name": "", "description": "", "citations": []}
+      ],
+      "user_sentiment": {
+        "positive": [],
+        "negative": [],
+        "citations": []
+      },
+      "market_size_growth": {
+        "market_size": "",
+        "growth_rate": "",
+        "growth_notes": "",
+        "citations": []
+      },
+      "pricing_strategies": [
+        {"competitor": "", "pricing": "", "notes": "", "citations": []}
+      ],
+      "unique_value_gap": {
+        "gaps": [],
+        "citations": []
+      },
+      "risks_challenges": {
+        "risks": [],
+        "citations": []
+      },
+      "trends": {
+        "trends": [],
+        "citations": []
+      }
     }
 
     NOTE: THE USER CAN'T SEE THE TOOL RESPONSE.
+    Only use links returned by tools for citations. Use short, clear bullets.
 
-    A few things to remember:
-    - Please include markdown-formatted links to any citations used in your response. Only include one
-    or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
-
-    Company Overview: 
+    Company Overview:
     """
 
 GITHUB_PROJ_DETAILS_EXTRACT_PROMPT = """

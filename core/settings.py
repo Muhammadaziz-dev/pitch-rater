@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     TEXT_MODEL: str | None = None
     VISION_MODEL: str | None = None
     EMBEDDINGS_MODEL: str | None = None
+    MARKET_MODEL: str | None = None
     SPEECH_LANGUAGE: str | None = None
 
     LANGCHAIN_TRACING_V2: bool = False

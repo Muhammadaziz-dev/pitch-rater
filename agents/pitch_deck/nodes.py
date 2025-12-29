@@ -116,9 +116,22 @@ def ScoreSlide(state: GraphState) -> Union[GraphState, dict]:
             res.append(dict(scorecard.scores[i]))
 
         state["scorecard"] = res
+        state["overall_score"] = _calculate_overall_score(res)
         return state
     except Exception as e:
         return {"error": f"Scoring Task failed: {str(e)}"}
+
+
+def _calculate_overall_score(scorecard: list[dict]) -> int:
+    scores = [
+        entry.get("score")
+        for entry in scorecard
+        if isinstance(entry.get("score"), (int, float))
+    ]
+    if not scores:
+        return 0
+    average = sum(scores) / len(scores)
+    return int(round(average * 10))
 
 def should_continue(state: Union[GraphState, dict]) -> Union[Literal["continue"], Literal["end"]]:
     """Determine if the graph should continue or end based on the state"""

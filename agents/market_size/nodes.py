@@ -8,7 +8,7 @@ from agents.market_size.models import (
 )
 
 language_model = ChatGoogleGenerativeAI(
-    model=settings.TEXT_MODEL,
+    model=settings.MARKET_MODEL or settings.TEXT_MODEL,
     temperature=0,
     google_api_key=settings.GOOGLE_API_KEY,
 )
@@ -23,9 +23,7 @@ def market_research(state: GraphState) -> GraphState:
             MARKET_RESEARCH_PROMPT + str(state["input_overview"])
         )
         
-        state["sector"] = response.sector
-        state["market_size"] = response.market_size
-        state["competitors"] = response.competitors
+        state["market_research"] = response.model_dump()
         return state
     except Exception as e:
         print(f"Error in market research: {str(e)}")

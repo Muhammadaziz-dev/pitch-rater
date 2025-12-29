@@ -34,6 +34,7 @@ def analyze_pitch_deck(state: GraphState) -> GraphState:
         # Update state with pitch deck analysis results
         state["summary"] = result["summary"]
         state["scorecard"] = result["scorecard"]
+        state["overall_score"] = result.get("overall_score")
         state["slide_content"] = result.get("slide_content", [])
         
         # Determine if it's a tech company
@@ -82,9 +83,7 @@ def analyze_market(state: GraphState) -> GraphState:
             return state
             
         # Update state with market analysis results
-        state["sector"] = result["sector"]
-        state["market_size"] = result["market_size"]
-        state["competitors"] = result["competitors"]
+        state["market_research"] = result.get("market_research")
         
         return state
         
@@ -159,10 +158,8 @@ def format_response(state: GraphState) -> SupervisorResponse:
         ),
         pitch_deck_scorecard=state["scorecard"],
         market_analysis=MarketAnalysis(
-            sector=state["sector"],
-            market_size=state["market_size"],
-            competitors=state["competitors"]
-        ) if state.get("sector") else None,
+            market_research=state["market_research"]
+        ) if state.get("market_research") else None,
         github_analysis=GitHubAnalysis(
             repositories=state["github_details"]
         ) if state.get("github_details") else None,
