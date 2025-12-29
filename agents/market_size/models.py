@@ -1,6 +1,6 @@
-from typing import TypedDict
 from pydantic import BaseModel, Field
-from typing import TypedDict, List, Dict, Optional
+from typing import List, Dict, Optional
+from typing_extensions import TypedDict
 
 class CompanyOverview(BaseModel):
     """Response model for company overview details"""

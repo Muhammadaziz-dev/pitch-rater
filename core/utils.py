@@ -1,11 +1,13 @@
 from typing import Any
+import os
+import subprocess
+import tempfile
 from uuid import UUID, uuid4
 from langchain_core.runnables import RunnableConfig
 import fitz
 from PIL import Image
 import io
 import base64
-from openai import OpenAI
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -20,6 +22,10 @@ from core.schema import ChatMessage, UserInput
 from fastapi import HTTPException
 from langgraph.pregel import Pregel
 from core.settings import settings
+try:
+    from google.cloud import speech_v1 as speech
+except ImportError:
+    from google.cloud import speech
 
 async def handle_complete(user_input: list) -> tuple[dict[str, Any], UUID]:
     run_id = uuid4()
@@ -213,14 +219,59 @@ def getbase64(image):
     return "data:image/jpeg;base64," + base64.b64encode(image.getvalue()).decode("utf-8")
 
 
-def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
-    api_key = settings.OPENAI_API_KEY.get_secret_value() if settings.OPENAI_API_KEY else None
-    client = OpenAI(api_key=api_key)
-    response = client.audio.transcriptions.create(
-        model=settings.AUDIO_MODEL or "whisper-1",
-        file=(filename, audio_bytes),
+def _convert_to_wav_bytes(audio_bytes: bytes, filename: str) -> bytes:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, filename)
+        output_path = os.path.join(tmpdir, "audio.wav")
+
+        with open(input_path, "wb") as input_file:
+            input_file.write(audio_bytes)
+
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_path,
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-f",
+            "wav",
+            output_path,
+        ]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                "ffmpeg failed to convert audio. Ensure ffmpeg is installed."
+            )
+
+        with open(output_path, "rb") as output_file:
+            return output_file.read()
+
+
+def transcribe_audio_bytes(audio_bytes: bytes, filename: str, content_type: str | None) -> str:
+    wav_bytes = audio_bytes
+    if not filename.lower().endswith(".wav") or (content_type and content_type.startswith("video/")):
+        wav_bytes = _convert_to_wav_bytes(audio_bytes, filename)
+
+    audio = speech.RecognitionAudio(content=wav_bytes)
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        language_code=settings.SPEECH_LANGUAGE or "en-US",
+        enable_automatic_punctuation=True,
     )
-    return response.text
+    client = speech.SpeechClient()
+    response = client.recognize(config=config, audio=audio)
+    transcripts = [
+        result.alternatives[0].transcript
+        for result in response.results
+        if result.alternatives
+    ]
+    return " ".join(transcripts).strip()
+
+
 
 
 def convert_message_content_to_string(content: str | list[str | dict]) -> str:

@@ -2,7 +2,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Union, Literal
 from langchain_elasticsearch import ElasticsearchStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from core.settings import settings
 from langchain_core.documents import Document
 
@@ -19,7 +19,10 @@ from agents.pitch_deck.models import (
     ScoringResponseList
 )
 
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+embeddings = GoogleGenerativeAIEmbeddings(
+    model=settings.EMBEDDINGS_MODEL,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 
 # --- Step 1: OCR Slide Agent ---
 def OCRSlide(state: GraphState) -> Union[GraphState, dict]:
@@ -126,4 +129,3 @@ def should_continue(state: Union[GraphState, dict]) -> Union[Literal["continue"]
 def end_state(state: Union[GraphState, dict]) -> Union[GraphState, dict]:
     """Final node that returns the state as is"""
     return state
-

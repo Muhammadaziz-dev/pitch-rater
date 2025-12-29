@@ -1,4 +1,5 @@
-from typing import List, Optional, Literal, TypedDict
+from typing import List, Optional, Literal
+from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 
 class IdeaFilter(BaseModel):

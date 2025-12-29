@@ -1,5 +1,5 @@
 from typing import Annotated
-from dotenv import find_dotenv
+from dotenv import find_dotenv, load_dotenv
 from pydantic import (
     BeforeValidator,
     HttpUrl,
@@ -15,6 +15,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 def check_str_is_http(x: str) -> str:
     http_url_adapter = TypeAdapter(HttpUrl)
     return str(http_url_adapter.validate_python(x))
+
+load_dotenv(find_dotenv())
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -35,7 +37,7 @@ class Settings(BaseSettings):
     TEXT_MODEL: str | None = None
     VISION_MODEL: str | None = None
     EMBEDDINGS_MODEL: str | None = None
-    AUDIO_MODEL: str | None = None
+    SPEECH_LANGUAGE: str | None = None
 
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_PROJECT: str = "default"

@@ -1,6 +1,7 @@
 # supervisor/models.py
 
-from typing import TypedDict, List, Optional, Dict
+from typing import List, Optional, Dict
+from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 
 # Import relevant models from other agents
@@ -93,4 +94,3 @@ class SupervisorState(TypedDict):
     github_analysis: Optional[GitHubAnalysis]
     is_tech_company: bool
     error: Optional[str]
-

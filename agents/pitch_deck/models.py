@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Tuple, TypedDict
+from typing import List, Optional, Dict, Any, Tuple
+from typing_extensions import TypedDict
 
 class FounderExperience(BaseModel):
     work_experience: Optional[str] = Field(default=None, alias="Work Experience", description="Work experience of the founder")

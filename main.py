@@ -29,6 +29,7 @@ from core.utils import (
 from core.schema import (
     ChatMessage,
     UserInput,
+    VideoPitchInput,
 )
 from core.utils import (
     langchain_to_chat_message,
@@ -268,7 +269,7 @@ async def process_chat_query(user_input: UserInput) -> ChatMessage:
 @router.post("/analyze-video-pitch")
 async def analyze_video_pitch(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
-    Analyzes a pitch video (or audio) and returns an investor-style analysis.
+    Analyzes a pitch video/audio file and returns an investor-style analysis.
 
     Args:
         file (UploadFile): Video/audio file containing the pitch
@@ -281,15 +282,24 @@ async def analyze_video_pitch(file: UploadFile = File(...)) -> Dict[str, Any]:
     Raises:
         HTTPException: If file type is unsupported or processing fails
     """
-    if not file.content_type or not file.content_type.startswith(("video/", "audio/")):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type. Please upload a video or audio file.",
-        )
-
     try:
+        if not file.content_type or not file.content_type.startswith(("video/", "audio/")):
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file type. Please upload a video or audio file.",
+            )
+
         file_bytes = await file.read()
-        transcript = transcribe_audio_bytes(file_bytes, file.filename or "pitch.mp4")
+        transcript = transcribe_audio_bytes(
+            file_bytes,
+            file.filename or "pitch",
+            file.content_type,
+        )
+        if not transcript:
+            raise HTTPException(
+                status_code=422,
+                detail="Transcription failed to extract text.",
+            )
 
         kwargs, run_id = await handle_video_pitch(transcript)
         result = video_pitch_agent.invoke(**kwargs)
@@ -302,6 +312,45 @@ async def analyze_video_pitch(file: UploadFile = File(...)) -> Dict[str, Any]:
 
         return {
             "transcript": transcript,
+            "analysis": result["analysis"],
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Usage limit reached. Please try again in 30 seconds.",
+        )
+
+
+@router.post("/analyze-video-pitch-text")
+async def analyze_video_pitch_text(video_input: VideoPitchInput) -> Dict[str, Any]:
+    """
+    Analyzes a pitch video transcript and returns an investor-style analysis.
+
+    Args:
+        video_input (VideoPitchInput): Transcript of the pitch video/audio
+
+    Returns:
+        Dict containing:
+            - transcript: Pitch transcript
+            - analysis: Investor analysis with idea filter, hard questions, and scores
+
+    Raises:
+        HTTPException: If processing fails
+    """
+    try:
+        kwargs, run_id = await handle_video_pitch(video_input.transcript)
+        result = video_pitch_agent.invoke(**kwargs)
+
+        if "analysis" not in result:
+            raise HTTPException(
+                status_code=500,
+                detail="Usage limit reached. Please try again in 30 seconds.",
+            )
+
+        return {
+            "transcript": video_input.transcript,
             "analysis": result["analysis"],
         }
     except HTTPException:

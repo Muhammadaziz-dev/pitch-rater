@@ -1,5 +1,5 @@
 from firecrawl import FirecrawlApp
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from core.settings import settings
 from core.prompts import GITHUB_ORG_DETAILS_EXTRACT_PROMPT
 
@@ -8,7 +8,11 @@ from agents.github_repo.models import (
     Repositories
 )
 
-language_model = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0).with_structured_output(Repositories)
+language_model = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+).with_structured_output(Repositories)
 
 def github_repo(state: GraphState) -> GraphState:
     try:
@@ -28,4 +32,3 @@ def github_repo(state: GraphState) -> GraphState:
 def end_state(state: GraphState) -> GraphState:
     """Final node that returns the state as is"""
     return state
-

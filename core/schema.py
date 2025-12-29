@@ -28,6 +28,15 @@ class UserInput(BaseModel):
         examples=[{"spicy_level": 0.8}],
     )
 
+
+class VideoPitchInput(BaseModel):
+    """Transcript input for video pitch analysis."""
+
+    transcript: str = Field(
+        description="Transcript of the pitch video/audio.",
+        examples=["We are building a logistics platform for ..."],
+    )
+
 class ToolCall(TypedDict):
     """Represents a request to call a tool."""
 
@@ -86,4 +95,3 @@ class ChatMessage(BaseModel):
 
     def pretty_print(self) -> None:
         print(self.pretty_repr())  # noqa: T201
-

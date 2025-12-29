@@ -1,9 +1,13 @@
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from core.settings import settings
 from core.prompts import VIDEO_PITCH_ANALYSIS_PROMPT
 from agents.video_pitch.models import VideoPitchAnalysis
 
-language_model = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0)
+language_model = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 
 
 def analyze_transcript(transcript: str) -> VideoPitchAnalysis:

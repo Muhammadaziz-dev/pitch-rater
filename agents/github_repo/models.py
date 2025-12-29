@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import List, TypedDict, Optional
+from typing import List, Optional
+from typing_extensions import TypedDict
 
 class ExtractSchema(BaseModel):
     repository: str = Field(default=None, alias="Repository Name", description="Repository Name")

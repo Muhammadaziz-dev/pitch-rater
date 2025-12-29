@@ -1,6 +1,9 @@
 from langchain_elasticsearch import ElasticsearchStore
 from core.settings import settings
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_google_genai import (
+    ChatGoogleGenerativeAI,
+    GoogleGenerativeAIEmbeddings,
+)
 from langgraph.graph import MessagesState, StateGraph
 from langgraph.graph import END
 from langgraph.prebuilt import tools_condition
@@ -12,14 +15,21 @@ from agents.chatbot_qa.nodes import (
     tools,
 )
 
-embeddings = OpenAIEmbeddings(model=settings.EMBEDDINGS_MODEL)
+embeddings = GoogleGenerativeAIEmbeddings(
+    model=settings.EMBEDDINGS_MODEL,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 vector_store = ElasticsearchStore(
             es_url=settings.ELASTIC_SEARCH_URL,
             index_name="pitch-deck-ai",
             embedding=embeddings,
             es_api_key=settings.ELASTIC_SEARCH_API,
         )
-llm = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0)
+llm = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 
 graph_builder = StateGraph(MessagesState)
 graph_builder.add_node(query_or_respond)

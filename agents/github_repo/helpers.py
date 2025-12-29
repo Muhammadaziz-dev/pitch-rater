@@ -1,6 +1,5 @@
 from langchain_core.runnables import RunnableLambda
 from typing import Dict, Any, Tuple
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -37,7 +36,11 @@ def vision_model_fn(input_dict):
 
 vision_model = RunnableLambda(vision_model_fn)
 
-language_model = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0)
+language_model = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 search_tool = TavilySearchResults(k=3)
 summary_tasks = [
         ("Company Overview", language_model, SUMMARIZE_COMPANY_OVERVIEW_PROMPT),

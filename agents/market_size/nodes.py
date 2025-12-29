@@ -1,5 +1,5 @@
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from core.prompts import MARKET_RESEARCH_PROMPT
 from core.settings import settings
 from agents.market_size.models import (
@@ -7,7 +7,11 @@ from agents.market_size.models import (
     MarketResearchResponse    
 )
 
-language_model = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0)
+language_model = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 search_tool = TavilySearchResults(k=3)
 tools = [search_tool]
 language_model = language_model.bind_tools(tools).with_structured_output(MarketResearchResponse)  

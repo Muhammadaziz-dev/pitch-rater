@@ -1,20 +1,29 @@
 from langchain_elasticsearch import ElasticsearchStore
 from core.settings import settings
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_google_genai import (
+    ChatGoogleGenerativeAI,
+    GoogleGenerativeAIEmbeddings,
+)
 from langgraph.graph import MessagesState
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage
 from langgraph.prebuilt import ToolNode
-from langgraph.prebuilt import ToolNode
 
-embeddings = OpenAIEmbeddings(model=settings.EMBEDDINGS_MODEL)
+embeddings = GoogleGenerativeAIEmbeddings(
+    model=settings.EMBEDDINGS_MODEL,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 vector_store = ElasticsearchStore(
             es_url=settings.ELASTIC_SEARCH_URL,
             index_name="pitch-deck-ai",
             embedding=embeddings,
             es_api_key=settings.ELASTIC_SEARCH_API,
         )
-llm = ChatOpenAI(model=settings.TEXT_MODEL, temperature=0)
+llm = ChatGoogleGenerativeAI(
+    model=settings.TEXT_MODEL,
+    temperature=0,
+    google_api_key=settings.GOOGLE_API_KEY,
+)
 
 @tool(response_format="content_and_artifact")
 def retrieve(query: str):
