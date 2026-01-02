@@ -49,5 +49,6 @@ class Settings(BaseSettings):
 
     ELASTIC_SEARCH_URL: str | None = None
     ELASTIC_SEARCH_API: str | None = None
+    CORS_ORIGINS: str | None = None
 
 settings = Settings()

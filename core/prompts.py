@@ -22,8 +22,8 @@ You are a structured analyst. Extract explicit claims, implicit assumptions, and
 Only use the provided text. If something is missing, write \"Not stated\" in claims and mark evidence false.
 
 Return JSON with:
-{
-  \"claims\": {
+{{
+  \"claims\": {{
     \"problem\": \"\",
     \"market_size\": \"\",
     \"differentiation\": \"\",
@@ -31,11 +31,11 @@ Return JSON with:
     \"business_model\": \"\",
     \"go_to_market\": \"\",
     \"team\": \"\"
-  },
+  }},
   \"assumptions\": [\"\"],
   \"promises\": [\"\"],
   \"missing_evidence\": [\"\"],
-  \"evidence_present\": {
+  \"evidence_present\": {{
     \"problem\": true,
     \"market_size\": false,
     \"differentiation\": false,
@@ -43,8 +43,8 @@ Return JSON with:
     \"business_model\": false,
     \"go_to_market\": false,
     \"team\": false
-  }
-}
+  }}
+}}
 
 Input:
 {source}
@@ -59,9 +59,9 @@ Tasks:
 3) If a section is missing, return an empty string for that section.
 
 Return JSON with:
-{
+{{
   "normalized_text": "",
-  "sections": {
+  "sections": {{
     "problem": "",
     "solution": "",
     "market": "",
@@ -70,8 +70,8 @@ Return JSON with:
     "go_to_market": "",
     "team": "",
     "competition": ""
-  }
-}
+  }}
+}}
 
 Pitch text:
 {source}

@@ -6,3 +6,5 @@ env/
 .DS_Store
 .idea/
 .vscode/
+service-account.json
+gen-lang-client-*.json

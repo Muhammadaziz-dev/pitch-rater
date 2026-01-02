@@ -15,6 +15,7 @@ from agents.supervisor.agent import supervisor_agent
 from agents.video_pitch.agent import video_pitch_agent
 from langgraph.pregel import Pregel
 from langchain_core.messages import AIMessage
+from core.settings import settings
 from core.utils import (
     handle_input_slides, 
     handle_market_size,
@@ -48,6 +49,7 @@ from core.investor_simulation import (
     build_next_actions,
     build_likely_rejection,
 )
+from agents.video_pitch.helpers import analyze_transcript
 
 # Suppress LangChain beta warnings
 warnings.filterwarnings("ignore", category=LangChainBetaWarning)
@@ -61,14 +63,21 @@ app = FastAPI(
 )
 
 # Configure CORS middleware
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+cors_origins = (
+    [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+    if settings.CORS_ORIGINS
+    else default_origins
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -328,10 +337,11 @@ async def analyze_video_pitch(file: UploadFile = File(...)) -> Dict[str, Any]:
         }
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
+        logger.exception("Video pitch analysis failed: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail="Usage limit reached. Please try again in 30 seconds.",
+            detail="Video pitch analysis failed. Check server logs for details.",
         )
 
 
@@ -507,6 +517,21 @@ async def final_verdict(payload: InvestorSimulationInput) -> Dict[str, Any]:
         "next_actions": build_next_actions(simulation),
         "likely_rejection": build_likely_rejection(simulation),
     }
+
+
+@router.post("/investor-personas")
+async def investor_personas(video_input: VideoPitchInput) -> Dict[str, Any]:
+    """
+    Returns investor personas and hard questions for a pitch transcript.
+    """
+    try:
+        analysis = analyze_transcript(video_input.transcript)
+        return {"investor_modes": analysis.investor_modes.model_dump()}
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Investor persona analysis failed. Please try again.",
+        )
 
 # Include router in the FastAPI application
 app.include_router(router)

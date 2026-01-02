@@ -8,6 +8,7 @@ import fitz
 from PIL import Image
 import io
 import base64
+import wave
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -248,12 +249,32 @@ def _convert_to_wav_bytes(audio_bytes: bytes, filename: str) -> bytes:
             return output_file.read()
 
 
+def _chunk_wav_bytes(wav_bytes: bytes, max_seconds: int = 55) -> list[bytes]:
+    chunks: list[bytes] = []
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wav_reader:
+        framerate = wav_reader.getframerate()
+        sample_width = wav_reader.getsampwidth()
+        channels = wav_reader.getnchannels()
+        frames_per_chunk = framerate * max_seconds
+        while True:
+            frames = wav_reader.readframes(frames_per_chunk)
+            if not frames:
+                break
+            output_buffer = io.BytesIO()
+            with wave.open(output_buffer, "wb") as wav_writer:
+                wav_writer.setnchannels(channels)
+                wav_writer.setsampwidth(sample_width)
+                wav_writer.setframerate(framerate)
+                wav_writer.writeframes(frames)
+            chunks.append(output_buffer.getvalue())
+    return chunks
+
+
 def transcribe_audio_bytes(audio_bytes: bytes, filename: str, content_type: str | None) -> str:
     wav_bytes = audio_bytes
     if not filename.lower().endswith(".wav") or (content_type and content_type.startswith("video/")):
         wav_bytes = _convert_to_wav_bytes(audio_bytes, filename)
 
-    audio = speech.RecognitionAudio(content=wav_bytes)
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=16000,
@@ -261,12 +282,17 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str, content_type: str 
         enable_automatic_punctuation=True,
     )
     client = speech.SpeechClient()
-    response = client.recognize(config=config, audio=audio)
-    transcripts = [
-        result.alternatives[0].transcript
-        for result in response.results
-        if result.alternatives
-    ]
+
+    chunks = _chunk_wav_bytes(wav_bytes)
+    transcripts: list[str] = []
+    for chunk in chunks:
+        audio = speech.RecognitionAudio(content=chunk)
+        response = client.recognize(config=config, audio=audio)
+        transcripts.extend(
+            result.alternatives[0].transcript
+            for result in response.results
+            if result.alternatives
+        )
     return " ".join(transcripts).strip()
 
 

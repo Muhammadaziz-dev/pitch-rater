@@ -75,6 +75,7 @@ Add your API keys to .env (Gemini-only setup):
 - `MARKET_MODEL` (optional, use a faster model like `gemini-2.5-flash` for market research)
 - `SPEECH_LANGUAGE` (optional, default `en-US`)
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to GCP service account JSON for Speech-to-Text)
+- `CORS_ORIGINS` (optional, comma-separated list of allowed frontend origins)
 
 Example `.env`:
 ```bash
@@ -85,6 +86,7 @@ EMBEDDINGS_MODEL=text-embedding-004
 MARKET_MODEL=gemini-2.5-flash
 SPEECH_LANGUAGE=en-US
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 Make sure Speech-to-Text is enabled in your GCP project tied to the service account.
@@ -172,6 +174,7 @@ curl -X POST "http://localhost:8000/analyze-complete" \
 - `POST /investor-simulation`: Rule-based investor simulation only
 - `POST /skepticism-flags`: Unsupported claim flags
 - `POST /final-verdict`: Verdict + blockers + next actions
+- `POST /investor-personas`: Investor persona questions (JSON body)
 
 ### Request Details
 
@@ -343,6 +346,161 @@ curl -X POST "http://localhost:8000/score-startup" \
 {
   "claim_assumptions": { "...": "..." },
   "market_research": { "...": "..." }
+}
+```
+
+`POST /investor-personas`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "transcript": "We are building...",
+  "model": "gemini-2.5-pro"
+}
+```
+- Response:
+```json
+{
+  "investor_modes": {
+    "seed_investor": {"hard_questions": ["How will you acquire first 100 customers?"]},
+    "vc_investor": {"hard_questions": ["What is the path to $100M ARR?"]},
+    "angel_investor": {"hard_questions": ["Why are you the right team?"]},
+    "demo_day": {"hard_questions": ["What traction can you show?"]}
+  }
+}
+```
+
+---
+
+## 🧾 Null Field Mapping (Frontend Integration)
+
+Use this section to fetch data for fields that may be `null` in the main analysis response.
+
+### `/extract-claims` (file)
+- **Method:** `POST`
+- **Use for:** `claim_assumptions`, `sections`, `normalized_text`
+- **Body:** `multipart/form-data`
+  - `file`: PDF or video/audio file
+- **Response:**
+```json
+{
+  "source_type": "video|deck",
+  "transcript": "optional",
+  "normalized_text": "...",
+  "sections": {"problem": "", "solution": "", "market": "", "traction": ""},
+  "claim_assumptions": {
+    "claims": {"problem": "", "market_size": "", "differentiation": "", "traction": ""},
+    "assumptions": [],
+    "promises": [],
+    "missing_evidence": [],
+    "evidence_present": {"problem": true, "market_size": false}
+  }
+}
+```
+
+### `/extract-claims-text`
+- **Method:** `POST`
+- **Use for:** `claim_assumptions`, `sections`, `normalized_text`
+- **Body:** `application/json`
+```json
+{ "text": "raw pitch text or transcript", "source_type": "video|deck|text" }
+```
+- **Response:** same as `/extract-claims`.
+
+### `/score-startup`
+- **Method:** `POST`
+- **Use for:** `investor_simulation`, `final_verdict`, `top_blockers`, `next_actions`, `likely_rejection`, `claim_vs_reality`, `skepticism_flags`
+- **Body:** `application/json`
+```json
+{
+  "claim_assumptions": { "...": "..." },
+  "market_research": { "...": "..." }
+}
+```
+- **Response:**
+```json
+{
+  "claim_vs_reality": {
+    "problem_real": "Yes|Weak",
+    "tam_plausible": "Yes|Weak",
+    "differentiation_strong": "Yes|Weak",
+    "traction_believable": "Yes|Weak",
+    "notes": []
+  },
+  "investor_simulation": {
+    "scores": {
+      "problem_severity": 0,
+      "market_size_logic": 0,
+      "differentiation": 0,
+      "scalability": 0,
+      "pitch_clarity": 0
+    },
+    "overall_score": 0,
+    "verdict": "Investor ready|Not ready",
+    "hard_questions": [],
+    "fix_list": []
+  },
+  "skepticism_flags": [
+    { "statement": "", "why_investors_doubt": "" }
+  ],
+  "final_verdict": {
+    "status": "Investor Ready|Not Investor Ready",
+    "summary": ""
+  },
+  "top_blockers": [],
+  "next_actions": [],
+  "likely_rejection": ""
+}
+```
+
+### `/investor-simulation`
+- **Method:** `POST`
+- **Use for:** `investor_simulation` only
+- **Body:** `application/json`
+```json
+{ "claim_assumptions": { "...": "..." }, "market_research": { "...": "..." } }
+```
+- **Response:**
+```json
+{
+  "scores": { "problem_severity": 0, "market_size_logic": 0, "differentiation": 0, "scalability": 0, "pitch_clarity": 0 },
+  "overall_score": 0,
+  "verdict": "Investor ready|Not ready",
+  "hard_questions": [],
+  "fix_list": []
+}
+```
+
+### `/skepticism-flags`
+- **Method:** `POST`
+- **Use for:** `skepticism_flags`
+- **Body:** `application/json`
+```json
+{ "claim_assumptions": { "...": "..." } }
+```
+- **Response:**
+```json
+{
+  "skepticism_flags": [
+    { "statement": "", "why_investors_doubt": "" }
+  ]
+}
+```
+
+### `/final-verdict`
+- **Method:** `POST`
+- **Use for:** `final_verdict`, `top_blockers`, `next_actions`, `likely_rejection`
+- **Body:** `application/json`
+```json
+{ "claim_assumptions": { "...": "..." }, "market_research": { "...": "..." } }
+```
+- **Response:
+```json
+{
+  "final_verdict": { "status": "Investor Ready|Not Investor Ready", "summary": "" },
+  "top_blockers": [],
+  "next_actions": [],
+  "likely_rejection": ""
 }
 ```
 
