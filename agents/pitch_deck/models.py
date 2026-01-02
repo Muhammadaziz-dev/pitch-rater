@@ -77,6 +77,8 @@ class GraphState(TypedDict):
     summary: Optional[str]
     scorecard: Optional[str]
     overall_score: Optional[int]
+    claim_assumptions: Optional[dict]
+    investor_simulation: Optional[dict]
     slide_content: Optional[List[SlideContent]]
 
 class ProcessSlideResponse(BaseModel):

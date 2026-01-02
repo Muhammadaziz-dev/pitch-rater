@@ -30,9 +30,23 @@ from core.schema import (
     ChatMessage,
     UserInput,
     VideoPitchInput,
+    ExtractClaimsTextInput,
+    ScoreStartupInput,
+    InvestorSimulationInput,
 )
 from core.utils import (
     langchain_to_chat_message,
+)
+from core.pitch_preprocess import preprocess_pitch_text
+from core.pitch_claims import extract_claims_from_text
+from core.investor_simulation import (
+    compare_claims_to_market,
+    compute_investor_simulation,
+    build_skepticism_flags,
+    build_final_verdict,
+    build_top_blockers,
+    build_next_actions,
+    build_likely_rejection,
 )
 
 # Suppress LangChain beta warnings
@@ -102,6 +116,8 @@ async def analyze_complete(file: UploadFile = File(...)) -> Dict[str, Any]:
             'summary': result['summary'],
             'scorecard': result['scorecard'],
             'overall_score': result.get('overall_score', 0),
+            'claim_assumptions': result.get('claim_assumptions'),
+            'investor_simulation': result.get('investor_simulation'),
             'market_research': result.get('market_research')
         }
         if result['github_url']:
@@ -148,6 +164,8 @@ async def analyze_pitch_deck(file: UploadFile = File(...)) -> Dict[str, Any]:
             'scorecard': response['scorecard'],
             'summary': response['summary'],
             'overall_score': response.get('overall_score', 0),
+            'claim_assumptions': response.get('claim_assumptions'),
+            'investor_simulation': response.get('investor_simulation'),
         }
     else:
         raise HTTPException(
@@ -354,6 +372,141 @@ async def analyze_video_pitch_text(video_input: VideoPitchInput) -> Dict[str, An
             status_code=500,
             detail="Usage limit reached. Please try again in 30 seconds.",
         )
+
+
+@router.post("/extract-claims")
+async def extract_claims(file: UploadFile = File(...)) -> Dict[str, Any]:
+    """
+    Extracts claims and assumptions from a pitch file (video/audio/pdf).
+    """
+    try:
+        if not file.content_type:
+            raise HTTPException(status_code=400, detail="Missing content type.")
+
+        if file.content_type.startswith(("video/", "audio/")):
+            file_bytes = await file.read()
+            transcript = transcribe_audio_bytes(
+                file_bytes,
+                file.filename or "pitch",
+                file.content_type,
+            )
+            preprocess = preprocess_pitch_text(transcript)
+            claims = extract_claims_from_text(preprocess.normalized_text)
+            return {
+                "source_type": "video",
+                "transcript": transcript,
+                "normalized_text": preprocess.normalized_text,
+                "sections": preprocess.sections,
+                "claim_assumptions": claims.model_dump(),
+            }
+
+        if file.content_type == "application/pdf":
+            file_bytes = await file.read()
+            images = convert_pdf_to_images(file_bytes)
+            encoded_images = [{'imageByte': getbase64(image)} for image in images]
+            kwargs, _run_id = await handle_input_slides(encoded_images)
+            response_events = await pitch_deck_agent.ainvoke(
+                **kwargs, stream_mode=["updates", "values"]
+            )
+            response_type, response = response_events[-1]
+            if response_type != "values":
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to process pitch deck.",
+                )
+
+            source_text = f"Summary: {response.get('summary')}\\nSlides: {response.get('slide_content', [])}"
+            preprocess = preprocess_pitch_text(source_text)
+            claims = response.get("claim_assumptions") or extract_claims_from_text(
+                preprocess.normalized_text
+            ).model_dump()
+
+            return {
+                "source_type": "deck",
+                "normalized_text": preprocess.normalized_text,
+                "sections": preprocess.sections,
+                "claim_assumptions": claims,
+            }
+
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload video/audio or PDF.",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Usage limit reached. Please try again in 30 seconds.",
+        )
+
+
+@router.post("/extract-claims-text")
+async def extract_claims_text(payload: ExtractClaimsTextInput) -> Dict[str, Any]:
+    """
+    Extracts claims and assumptions from raw pitch text.
+    """
+    preprocess = preprocess_pitch_text(payload.text)
+    claims = extract_claims_from_text(preprocess.normalized_text)
+    return {
+        "source_type": payload.source_type or "text",
+        "normalized_text": preprocess.normalized_text,
+        "sections": preprocess.sections,
+        "claim_assumptions": claims.model_dump(),
+    }
+
+
+@router.post("/score-startup")
+async def score_startup(payload: ScoreStartupInput) -> Dict[str, Any]:
+    """
+    Compares claims to market reality and returns scores + verdict.
+    """
+    comparison = compare_claims_to_market(payload.claim_assumptions, payload.market_research)
+    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
+    skepticism_flags = build_skepticism_flags(payload.claim_assumptions)
+    final_verdict = build_final_verdict(simulation)
+
+    return {
+        "claim_vs_reality": comparison.model_dump(),
+        "investor_simulation": simulation.model_dump(),
+        "skepticism_flags": skepticism_flags,
+        "final_verdict": final_verdict,
+        "top_blockers": build_top_blockers(simulation),
+        "next_actions": build_next_actions(simulation),
+        "likely_rejection": build_likely_rejection(simulation),
+    }
+
+
+@router.post("/investor-simulation")
+async def investor_simulation(payload: InvestorSimulationInput) -> Dict[str, Any]:
+    """
+    Returns rule-based investor simulation output from claims.
+    """
+    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
+    return simulation.model_dump()
+
+
+@router.post("/skepticism-flags")
+async def skepticism_flags(payload: InvestorSimulationInput) -> Dict[str, Any]:
+    """
+    Returns skepticism flags based on unsupported claims.
+    """
+    flags = build_skepticism_flags(payload.claim_assumptions)
+    return {"skepticism_flags": flags}
+
+
+@router.post("/final-verdict")
+async def final_verdict(payload: InvestorSimulationInput) -> Dict[str, Any]:
+    """
+    Returns a final verdict, blockers, and actions from claims.
+    """
+    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
+    return {
+        "final_verdict": build_final_verdict(simulation),
+        "top_blockers": build_top_blockers(simulation),
+        "next_actions": build_next_actions(simulation),
+        "likely_rejection": build_likely_rejection(simulation),
+    }
 
 # Include router in the FastAPI application
 app.include_router(router)

@@ -10,6 +10,7 @@ from agents.supervisor.models import (
     MarketAnalysis,
     GitHubAnalysis
 )
+from core.investor_simulation import ClaimAssumptionOutput, compute_investor_simulation
 
 def analyze_pitch_deck(state: GraphState) -> GraphState:
     """
@@ -35,6 +36,8 @@ def analyze_pitch_deck(state: GraphState) -> GraphState:
         state["summary"] = result["summary"]
         state["scorecard"] = result["scorecard"]
         state["overall_score"] = result.get("overall_score")
+        state["claim_assumptions"] = result.get("claim_assumptions")
+        state["investor_simulation"] = result.get("investor_simulation")
         state["slide_content"] = result.get("slide_content", [])
         
         # Determine if it's a tech company
@@ -84,6 +87,11 @@ def analyze_market(state: GraphState) -> GraphState:
             
         # Update state with market analysis results
         state["market_research"] = result.get("market_research")
+
+        if state.get("claim_assumptions") and state.get("market_research"):
+            claims = ClaimAssumptionOutput.model_validate(state["claim_assumptions"])
+            simulation = compute_investor_simulation(claims, state["market_research"])
+            state["investor_simulation"] = simulation.model_dump()
         
         return state
         

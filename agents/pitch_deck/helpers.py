@@ -1,9 +1,18 @@
 from langchain_core.runnables import RunnableLambda
+import json
 from typing import Dict, Any, Tuple
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
-from core.prompts import SLIDE_TO_TEXT_PROMPT, SUMMARIZE_COMPANY_OVERVIEW_PROMPT, SUMMARIZE_FOUNDER_MARKET_FIT_PROMPT, SUMMARIZE_MARKET_SIZING_PROMPT, SUMMARIZE_TRACTION_PROMPT, SCORING_PROMPT
+from core.prompts import (
+    SLIDE_TO_TEXT_PROMPT,
+    SUMMARIZE_COMPANY_OVERVIEW_PROMPT,
+    SUMMARIZE_FOUNDER_MARKET_FIT_PROMPT,
+    SUMMARIZE_MARKET_SIZING_PROMPT,
+    SUMMARIZE_TRACTION_PROMPT,
+    SCORING_PROMPT,
+    CLAIM_ASSUMPTION_PROMPT,
+)
 from google.api_core.exceptions import ResourceExhausted
 from agents.pitch_deck.models import (
     CompanyOverview,
@@ -12,6 +21,7 @@ from agents.pitch_deck.models import (
     Traction,
     ProcessSlideResponse,
 )
+from core.investor_simulation import ClaimAssumptionOutput
 from core.settings import settings
 
 def vision_model_fn(input_dict):
@@ -32,7 +42,28 @@ def vision_model_fn(input_dict):
         
     except Exception as e:
         print(f"Unexpected error occurred: {str(e)}")
-        raise  # Let the retry decorator handle it
+        # Fallback to strict JSON response to avoid hard failures.
+        try:
+            fallback_model = ChatGoogleGenerativeAI(
+                model=settings.VISION_MODEL,
+                google_api_key=settings.GOOGLE_API_KEY,
+                response_mime_type="application/json",
+            )
+            fallback_response = fallback_model.invoke([
+                HumanMessage(content=[
+                    {"type": "text", "text": prompt + "\\nReturn ONLY valid JSON."},
+                    {"type": "image_url", "image_url": {"url": image_bytes}}
+                ])
+            ])
+            parsed = json.loads(fallback_response.content)
+            return ProcessSlideResponse(
+                text=parsed.get("text", []),
+                image=parsed.get("image", []),
+                figure=parsed.get("figure", []),
+            )
+        except Exception as fallback_error:
+            print(f"Fallback JSON parsing failed: {fallback_error}")
+            return ProcessSlideResponse(text=[], image=[], figure=[])
 
 vision_model = RunnableLambda(vision_model_fn)
 
@@ -79,3 +110,9 @@ def process_summary(summary_type: str, model, prompt: str, slide_content: list) 
     except Exception as e:
         print(f"Error processing {summary_type} summary: {str(e)}")
         return summary_type, None
+
+
+def extract_claims_from_text(source_text: str) -> ClaimAssumptionOutput:
+    return language_model.with_structured_output(ClaimAssumptionOutput).invoke(
+        CLAIM_ASSUMPTION_PROMPT.format(source=source_text)
+    )

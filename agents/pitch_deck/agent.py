@@ -10,6 +10,7 @@ from agents.pitch_deck.models import (
 from agents.pitch_deck.nodes import (
     OCRSlide,
     SummarizeSlide,
+    ExtractClaims,
     ScoreSlide,
     should_continue,
     end_state
@@ -20,6 +21,7 @@ graph = StateGraph(GraphState)
 # Nodes
 graph.add_node("OCRSlide", RunnableLambda(OCRSlide))
 graph.add_node("SummarizeSlide", RunnableLambda(SummarizeSlide))
+graph.add_node("ExtractClaims", RunnableLambda(ExtractClaims))
 graph.add_node("ScoreSlide", RunnableLambda(ScoreSlide))
 graph.add_node("end", RunnableLambda(end_state))
 
@@ -38,6 +40,15 @@ graph.add_conditional_edges(
 
 graph.add_conditional_edges(
     "SummarizeSlide",
+    should_continue,
+    {
+        "continue": "ExtractClaims",
+        "end": "end"
+    }
+)
+
+graph.add_conditional_edges(
+    "ExtractClaims",
     should_continue,
     {
         "continue": "ScoreSlide",

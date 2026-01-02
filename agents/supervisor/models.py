@@ -67,6 +67,8 @@ class GraphState(TypedDict):
     summary: Optional[Dict]
     scorecard: Optional[List[Dict]]
     overall_score: Optional[int]
+    claim_assumptions: Optional[Dict]
+    investor_simulation: Optional[Dict]
     slide_content: Optional[List[SlideContent]]
     
     # Market analysis results

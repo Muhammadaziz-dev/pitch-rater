@@ -5,6 +5,8 @@
 - 📄 Upload a startup's pitch deck (PDF)
 - 🎥 Provide a startup's pitch video transcript (from audio/video)
 - 📋 Extracts and structures key information
+- 🧠 Extracts claims, assumptions, and missing evidence from decks or videos
+- ⚖️ Generates rule-based investor simulation scores, hard questions, and fix lists
 - 🏆 Scores the startup based on a **custom evaluation rubric** (for investors, accelerators, competition judges)
 - 🌎 Calculates **market size** estimates from real-time internet data
 - 🛠️ Pulls insights from the startup’s GitHub repositories (for developer tools/open-source startups)
@@ -164,6 +166,12 @@ curl -X POST "http://localhost:8000/analyze-complete" \
 - `POST /chat-assistant`: Q&A over analyzed deck (JSON body)
 - `POST /analyze-video-pitch`: Pitch video/audio upload with transcription + investor scoring
 - `POST /analyze-video-pitch-text`: Pitch transcript analysis (JSON body)
+- `POST /extract-claims`: Claim & assumption extraction (file upload)
+- `POST /extract-claims-text`: Claim & assumption extraction (JSON body)
+- `POST /score-startup`: Claim vs reality comparison + final verdict
+- `POST /investor-simulation`: Rule-based investor simulation only
+- `POST /skepticism-flags`: Unsupported claim flags
+- `POST /final-verdict`: Verdict + blockers + next actions
 
 ### Request Details
 
@@ -266,6 +274,78 @@ curl -X POST "http://localhost:8000/analyze-video-pitch-text" \
   -d '{"transcript":"We are building..."}'
 ```
 
+`POST /extract-claims`
+- Content-Type: `multipart/form-data`
+- Body:
+  - `file`: video/audio file or PDF
+- Example:
+```bash
+curl -X POST "http://localhost:8000/extract-claims" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@/path/to/pitch.mp4"
+```
+
+`POST /extract-claims-text`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "text": "We are building...",
+  "source_type": "video"
+}
+```
+- Example:
+```bash
+curl -X POST "http://localhost:8000/extract-claims-text" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"We are building...","source_type":"video"}'
+```
+
+`POST /score-startup`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "claim_assumptions": { "...": "..." },
+  "market_research": { "...": "..." }
+}
+```
+- Example:
+```bash
+curl -X POST "http://localhost:8000/score-startup" \
+  -H "Content-Type: application/json" \
+  -d '{"claim_assumptions":{},"market_research":{}}'
+```
+
+`POST /investor-simulation`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "claim_assumptions": { "...": "..." },
+  "market_research": { "...": "..." }
+}
+```
+
+`POST /skepticism-flags`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "claim_assumptions": { "...": "..." }
+}
+```
+
+`POST /final-verdict`
+- Content-Type: `application/json`
+- Body:
+```json
+{
+  "claim_assumptions": { "...": "..." },
+  "market_research": { "...": "..." }
+}
+```
+
 ### Example Responses
 
 `POST /analyze-pitch-deck` (trimmed)
@@ -281,7 +361,47 @@ curl -X POST "http://localhost:8000/analyze-video-pitch-text" \
     {"category": "Team", "score": 7, "justification": "Founders have domain expertise."},
     {"category": "Market", "score": 6, "justification": "TAM is stated but unclear method."}
   ],
-  "overall_score": 65
+  "overall_score": 65,
+  "claim_assumptions": {
+    "claims": {
+      "problem": "SMBs struggle with slow logistics",
+      "market_size": "Not stated",
+      "differentiation": "Unified routing + inventory",
+      "traction": "Not stated",
+      "business_model": "Subscription per seat",
+      "go_to_market": "Outbound sales",
+      "team": "Former logistics operators"
+    },
+    "assumptions": ["SMBs will switch quickly"],
+    "promises": ["10x faster shipping"],
+    "missing_evidence": ["Traction metrics", "Market sizing"],
+    "evidence_present": {
+      "problem": true,
+      "market_size": false,
+      "differentiation": true,
+      "traction": false,
+      "business_model": true,
+      "go_to_market": true,
+      "team": true
+    }
+  },
+  "investor_simulation": {
+    "scores": {
+      "problem_severity": 6,
+      "market_size_logic": 3,
+      "differentiation": 6,
+      "scalability": 6,
+      "pitch_clarity": 5
+    },
+    "overall_score": 52,
+    "verdict": "Not ready",
+    "hard_questions": [
+      "What is the clearly defined TAM/SAM/SOM, and how did you calculate it?"
+    ],
+    "fix_list": [
+      "Add market sizing with sources and assumptions."
+    ]
+  }
 }
 ```
 
@@ -294,6 +414,52 @@ curl -X POST "http://localhost:8000/analyze-video-pitch-text" \
     "strengths": ["Clear problem framing", "Large addressable market"],
     "weaknesses": ["Limited traction evidence", "Differentiation unclear"],
     "overall_score": 72,
+    "claim_assumptions": {
+      "claims": {
+        "problem": "SMBs struggle with slow logistics",
+        "market_size": "Global logistics software is a $12B market",
+        "differentiation": "Unified routing + inventory",
+        "traction": "Not stated",
+        "business_model": "Subscription per seat",
+        "go_to_market": "Outbound sales to SMBs",
+        "team": "Not stated"
+      },
+      "assumptions": [
+        "SMBs will switch providers quickly"
+      ],
+      "promises": [
+        "We will reach 1M users in 12 months"
+      ],
+      "missing_evidence": [
+        "Traction metrics"
+      ],
+      "evidence_present": {
+        "problem": true,
+        "market_size": false,
+        "differentiation": true,
+        "traction": false,
+        "business_model": true,
+        "go_to_market": true,
+        "team": false
+      }
+    },
+    "investor_simulation": {
+      "scores": {
+        "problem_severity": 6,
+        "market_size_logic": 3,
+        "differentiation": 6,
+        "scalability": 6,
+        "pitch_clarity": 5
+      },
+      "overall_score": 52,
+      "verdict": "Not ready",
+      "hard_questions": [
+        "What is the clearly defined TAM/SAM/SOM, and how did you calculate it?"
+      ],
+      "fix_list": [
+        "Add market sizing with sources and assumptions."
+      ]
+    },
     "idea_filter": {
       "problem": "Slow SMB logistics",
       "for_who": "Small and mid-size retailers",

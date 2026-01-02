@@ -17,6 +17,66 @@ Given the image of a presentation slide (typically from a PDF), extract and retu
 If any of the elements (text, figures, images) are not present in the slide, return an empty array for that field.
 """
 
+CLAIM_ASSUMPTION_PROMPT = """
+You are a structured analyst. Extract explicit claims, implicit assumptions, and promises from the input.
+Only use the provided text. If something is missing, write \"Not stated\" in claims and mark evidence false.
+
+Return JSON with:
+{
+  \"claims\": {
+    \"problem\": \"\",
+    \"market_size\": \"\",
+    \"differentiation\": \"\",
+    \"traction\": \"\",
+    \"business_model\": \"\",
+    \"go_to_market\": \"\",
+    \"team\": \"\"
+  },
+  \"assumptions\": [\"\"],
+  \"promises\": [\"\"],
+  \"missing_evidence\": [\"\"],
+  \"evidence_present\": {
+    \"problem\": true,
+    \"market_size\": false,
+    \"differentiation\": false,
+    \"traction\": false,
+    \"business_model\": false,
+    \"go_to_market\": false,
+    \"team\": false
+  }
+}
+
+Input:
+{source}
+"""
+
+PITCH_PREPROCESS_PROMPT = """
+You are a preprocessing engine. Clean and structure the pitch text.
+
+Tasks:
+1) Remove fluff, filler, and repetitions while preserving meaning.
+2) Detect sections: problem, solution, market, traction, business_model, go_to_market, team, competition.
+3) If a section is missing, return an empty string for that section.
+
+Return JSON with:
+{
+  "normalized_text": "",
+  "sections": {
+    "problem": "",
+    "solution": "",
+    "market": "",
+    "traction": "",
+    "business_model": "",
+    "go_to_market": "",
+    "team": "",
+    "competition": ""
+  }
+}
+
+Pitch text:
+{source}
+"""
+
 SUMMARIZE_COMPANY_OVERVIEW_PROMPT = """
 You are a highly skilled startup analyst helping investors quickly understand early-stage companies from their pitch decks.
 

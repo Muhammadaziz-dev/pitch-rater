@@ -3,6 +3,7 @@ from typing import Any, Literal, NotRequired
 from pydantic import BaseModel, Field, SerializeAsAny
 from typing_extensions import TypedDict
 from core.settings import settings
+from core.investor_simulation import ClaimAssumptionOutput
 
 class UserInput(BaseModel):
     """Basic user input for the agent."""
@@ -36,6 +37,28 @@ class VideoPitchInput(BaseModel):
         description="Transcript of the pitch video/audio.",
         examples=["We are building a logistics platform for ..."],
     )
+
+
+class ExtractClaimsTextInput(BaseModel):
+    text: str = Field(
+        description="Raw pitch text or transcript.",
+        examples=["We are building a logistics platform for SMBs..."],
+    )
+    source_type: str | None = Field(
+        default=None,
+        description="Optional source type hint (deck, video, text).",
+        examples=["video"],
+    )
+
+
+class ScoreStartupInput(BaseModel):
+    claim_assumptions: ClaimAssumptionOutput
+    market_research: dict[str, Any] | None = None
+
+
+class InvestorSimulationInput(BaseModel):
+    claim_assumptions: ClaimAssumptionOutput
+    market_research: dict[str, Any] | None = None
 
 class ToolCall(TypedDict):
     """Represents a request to call a tool."""

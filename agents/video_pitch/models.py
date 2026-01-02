@@ -1,6 +1,7 @@
 from typing import List, Optional, Literal
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
+from core.investor_simulation import ClaimAssumptionOutput, InvestorSimulationOutput
 
 class IdeaFilter(BaseModel):
     problem: str = Field(
@@ -62,6 +63,14 @@ class VideoPitchAnalysis(BaseModel):
         ge=0,
         le=100,
         description="Overall investor score (0-100).",
+    )
+    claim_assumptions: Optional[ClaimAssumptionOutput] = Field(
+        default=None,
+        description="Extracted claims and assumptions from the transcript.",
+    )
+    investor_simulation: Optional[InvestorSimulationOutput] = Field(
+        default=None,
+        description="Rule-based investor simulation output.",
     )
     idea_filter: IdeaFilter
     investor_modes: InvestorModes

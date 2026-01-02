@@ -12,12 +12,14 @@ from agents.pitch_deck.helpers import (
     SCORING_PROMPT,
     process_single_slide,
     process_summary,
+    extract_claims_from_text,
 )
 
 from agents.pitch_deck.models import (
     GraphState,
     ScoringResponseList
 )
+from core.investor_simulation import compute_investor_simulation
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model=settings.EMBEDDINGS_MODEL,
@@ -103,6 +105,18 @@ def SummarizeSlide(state: GraphState) -> Union[GraphState, dict]:
         return state
     except Exception as e:
         return {"error": f"Summarizer Task failed: {str(e)}"}
+
+# --- Step 2b: Claim & Assumption Extraction ---
+def ExtractClaims(state: GraphState) -> Union[GraphState, dict]:
+    try:
+        print("--- Step 2b: Claims Task ---")
+        source_text = f"Summary: {state['summary']}\nSlides: {state.get('slide_content', [])}"
+        claims = extract_claims_from_text(source_text)
+        state["claim_assumptions"] = claims.model_dump()
+        state["investor_simulation"] = compute_investor_simulation(claims).model_dump()
+        return state
+    except Exception as e:
+        return {"error": f"Claims Task failed: {str(e)}"}
 
 # --- Step 3: Scorecard Generator ---
 def ScoreSlide(state: GraphState) -> Union[GraphState, dict]:
