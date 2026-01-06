@@ -1,6 +1,8 @@
 import logging
 import warnings
 from typing import Any, Dict
+from uuid import uuid4
+import base64
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,15 +19,10 @@ from langgraph.pregel import Pregel
 from langchain_core.messages import AIMessage
 from core.settings import settings
 from core.utils import (
-    handle_input_slides, 
     handle_market_size,
-    handle_complete,
-    getbase64, 
-    convert_pdf_to_images, 
-    handle_qa_input, 
+    handle_qa_input,
     handle_github_link,
     handle_video_pitch,
-    transcribe_audio_bytes
 )
 from core.schema import (
     ChatMessage,
@@ -38,6 +35,13 @@ from core.schema import (
 from core.utils import (
     langchain_to_chat_message,
 )
+from jobs.storage import load_job, create_job
+from jobs.tasks import (
+    analyze_complete_job,
+    analyze_pitch_deck_job,
+    analyze_video_pitch_job,
+    extract_claims_job,
+)
 from core.pitch_preprocess import preprocess_pitch_text
 from core.pitch_claims import extract_claims_from_text
 from core.investor_simulation import (
@@ -49,6 +53,7 @@ from core.investor_simulation import (
     build_next_actions,
     build_likely_rejection,
 )
+from core.investor_simulation import ClaimAssumptionOutput
 from agents.video_pitch.helpers import analyze_transcript
 
 # Suppress LangChain beta warnings
@@ -85,6 +90,17 @@ app.add_middleware(
 
 router = APIRouter()
 
+@router.get("/jobs/{job_id}")
+def get_job_status(job_id: str):
+    """
+    Retrieve the status of a job.
+    """
+    job = load_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
 @router.post("/analyze-complete")
 async def analyze_complete(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
@@ -109,35 +125,13 @@ async def analyze_complete(file: UploadFile = File(...)) -> Dict[str, Any]:
         HTTPException: If processing fails or encounters an error
     """
 
-    try:
-        agent: CompiledStateGraph = supervisor_agent
-        encoded_images = []
-        pdf_bytes = await file.read()
-        images = convert_pdf_to_images(pdf_bytes)
-
-        for idx, image in enumerate(images):
-            encoded_images.append({'imageByte': getbase64(image)})
-
-        kwargs, run_id = await handle_complete(encoded_images)
-        result = supervisor_agent.invoke(**kwargs)
-        
-        out = {
-            'summary': result['summary'],
-            'scorecard': result['scorecard'],
-            'overall_score': result.get('overall_score', 0),
-            'claim_assumptions': result.get('claim_assumptions'),
-            'investor_simulation': result.get('investor_simulation'),
-            'market_research': result.get('market_research')
-        }
-        if result['github_url']:
-            out['github_details'] = result['github_details']
-        return out
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Usage limit reached. Please try again in 30 seconds.",
-        )
+    pdf_bytes = await file.read()
+    job = create_job(str(uuid4()))
+    analyze_complete_job.apply_async(
+        args=[job.id, {"pdf_b64": base64.b64encode(pdf_bytes).decode("utf-8")}],
+        task_id=job.id,
+    )
+    return {"job_id": job.id, "status": job.status}
 
 
 @router.post("/analyze-pitch-deck")
@@ -156,31 +150,13 @@ async def analyze_pitch_deck(file: UploadFile = File(...)) -> Dict[str, Any]:
     Raises:
         HTTPException: If API usage limit is reached or processing fails
     """
-    agent: CompiledStateGraph = pitch_deck_agent
-    encoded_images = []
     pdf_bytes = await file.read()
-    images = convert_pdf_to_images(pdf_bytes)
-
-    for idx, image in enumerate(images):
-        encoded_images.append({'imageByte': getbase64(image)})
-
-    kwargs, run_id = await handle_input_slides(encoded_images)
-    response_events = await agent.ainvoke(**kwargs, stream_mode=["updates", "values"])
-    response_type, response = response_events[-1]
-    
-    if (response_type == "values") and ('scorecard' in response) and ('summary' in response):
-        return {
-            'scorecard': response['scorecard'],
-            'summary': response['summary'],
-            'overall_score': response.get('overall_score', 0),
-            'claim_assumptions': response.get('claim_assumptions'),
-            'investor_simulation': response.get('investor_simulation'),
-        }
-    else:
-        raise HTTPException(
-            status_code=500,
-            detail="Usage limit reached. Please try again in 30 seconds.",
-        )
+    job = create_job(str(uuid4()))
+    analyze_pitch_deck_job.apply_async(
+        args=[job.id, {"pdf_b64": base64.b64encode(pdf_bytes).decode("utf-8")}],
+        task_id=job.id,
+    )
+    return {"job_id": job.id, "status": job.status}
 
 @router.post("/analyze-market-size")
 async def analyze_market_size(company_overview: dict) -> Dict[str, Any]:
@@ -303,46 +279,26 @@ async def analyze_video_pitch(file: UploadFile = File(...)) -> Dict[str, Any]:
     Raises:
         HTTPException: If file type is unsupported or processing fails
     """
-    try:
-        if not file.content_type or not file.content_type.startswith(("video/", "audio/")):
-            raise HTTPException(
-                status_code=400,
-                detail="Unsupported file type. Please upload a video or audio file.",
-            )
-
-        file_bytes = await file.read()
-        transcript = transcribe_audio_bytes(
-            file_bytes,
-            file.filename or "pitch",
-            file.content_type,
-        )
-        if not transcript:
-            raise HTTPException(
-                status_code=422,
-                detail="Transcription failed to extract text.",
-            )
-
-        kwargs, run_id = await handle_video_pitch(transcript)
-        result = video_pitch_agent.invoke(**kwargs)
-
-        if "analysis" not in result:
-            raise HTTPException(
-                status_code=500,
-                detail="Usage limit reached. Please try again in 30 seconds.",
-            )
-
-        return {
-            "transcript": transcript,
-            "analysis": result["analysis"],
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Video pitch analysis failed: %s", exc)
+    if not file.content_type or not file.content_type.startswith(("video/", "audio/")):
         raise HTTPException(
-            status_code=500,
-            detail="Video pitch analysis failed. Check server logs for details.",
+            status_code=400,
+            detail="Unsupported file type. Please upload a video or audio file.",
         )
+
+    file_bytes = await file.read()
+    job = create_job(str(uuid4()))
+    analyze_video_pitch_job.apply_async(
+        args=[
+            job.id,
+            {
+                "file_b64": base64.b64encode(file_bytes).decode("utf-8"),
+                "filename": file.filename or "pitch",
+                "content_type": file.content_type,
+            },
+        ],
+        task_id=job.id,
+    )
+    return {"job_id": job.id, "status": job.status}
 
 
 @router.post("/analyze-video-pitch-text")
@@ -389,66 +345,23 @@ async def extract_claims(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
     Extracts claims and assumptions from a pitch file (video/audio/pdf).
     """
-    try:
-        if not file.content_type:
-            raise HTTPException(status_code=400, detail="Missing content type.")
+    if not file.content_type:
+        raise HTTPException(status_code=400, detail="Missing content type.")
 
-        if file.content_type.startswith(("video/", "audio/")):
-            file_bytes = await file.read()
-            transcript = transcribe_audio_bytes(
-                file_bytes,
-                file.filename or "pitch",
-                file.content_type,
-            )
-            preprocess = preprocess_pitch_text(transcript)
-            claims = extract_claims_from_text(preprocess.normalized_text)
-            return {
-                "source_type": "video",
-                "transcript": transcript,
-                "normalized_text": preprocess.normalized_text,
-                "sections": preprocess.sections,
-                "claim_assumptions": claims.model_dump(),
-            }
-
-        if file.content_type == "application/pdf":
-            file_bytes = await file.read()
-            images = convert_pdf_to_images(file_bytes)
-            encoded_images = [{'imageByte': getbase64(image)} for image in images]
-            kwargs, _run_id = await handle_input_slides(encoded_images)
-            response_events = await pitch_deck_agent.ainvoke(
-                **kwargs, stream_mode=["updates", "values"]
-            )
-            response_type, response = response_events[-1]
-            if response_type != "values":
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to process pitch deck.",
-                )
-
-            source_text = f"Summary: {response.get('summary')}\\nSlides: {response.get('slide_content', [])}"
-            preprocess = preprocess_pitch_text(source_text)
-            claims = response.get("claim_assumptions") or extract_claims_from_text(
-                preprocess.normalized_text
-            ).model_dump()
-
-            return {
-                "source_type": "deck",
-                "normalized_text": preprocess.normalized_text,
-                "sections": preprocess.sections,
-                "claim_assumptions": claims,
-            }
-
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type. Please upload video/audio or PDF.",
-        )
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Usage limit reached. Please try again in 30 seconds.",
-        )
+    file_bytes = await file.read()
+    job = create_job(str(uuid4()))
+    extract_claims_job.apply_async(
+        args=[
+            job.id,
+            {
+                "file_b64": base64.b64encode(file_bytes).decode("utf-8"),
+                "filename": file.filename or "pitch",
+                "content_type": file.content_type,
+            },
+        ],
+        task_id=job.id,
+    )
+    return {"job_id": job.id, "status": job.status}
 
 
 @router.post("/extract-claims-text")
@@ -471,9 +384,15 @@ async def score_startup(payload: ScoreStartupInput) -> Dict[str, Any]:
     """
     Compares claims to market reality and returns scores + verdict.
     """
-    comparison = compare_claims_to_market(payload.claim_assumptions, payload.market_research)
-    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
-    skepticism_flags = build_skepticism_flags(payload.claim_assumptions)
+    if not payload.claim_assumptions:
+        raise HTTPException(
+            status_code=400,
+            detail="claim_assumptions is required. Call /extract-claims first.",
+        )
+    claims = ClaimAssumptionOutput.model_validate(payload.claim_assumptions)
+    comparison = compare_claims_to_market(claims, payload.market_research)
+    simulation = compute_investor_simulation(claims, payload.market_research)
+    skepticism_flags = build_skepticism_flags(claims)
     final_verdict = build_final_verdict(simulation)
 
     return {
@@ -492,7 +411,13 @@ async def investor_simulation(payload: InvestorSimulationInput) -> Dict[str, Any
     """
     Returns rule-based investor simulation output from claims.
     """
-    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
+    if not payload.claim_assumptions:
+        raise HTTPException(
+            status_code=400,
+            detail="claim_assumptions is required. Call /extract-claims first.",
+        )
+    claims = ClaimAssumptionOutput.model_validate(payload.claim_assumptions)
+    simulation = compute_investor_simulation(claims, payload.market_research)
     return simulation.model_dump()
 
 
@@ -501,7 +426,13 @@ async def skepticism_flags(payload: InvestorSimulationInput) -> Dict[str, Any]:
     """
     Returns skepticism flags based on unsupported claims.
     """
-    flags = build_skepticism_flags(payload.claim_assumptions)
+    if not payload.claim_assumptions:
+        raise HTTPException(
+            status_code=400,
+            detail="claim_assumptions is required. Call /extract-claims first.",
+        )
+    claims = ClaimAssumptionOutput.model_validate(payload.claim_assumptions)
+    flags = build_skepticism_flags(claims)
     return {"skepticism_flags": flags}
 
 
@@ -510,7 +441,13 @@ async def final_verdict(payload: InvestorSimulationInput) -> Dict[str, Any]:
     """
     Returns a final verdict, blockers, and actions from claims.
     """
-    simulation = compute_investor_simulation(payload.claim_assumptions, payload.market_research)
+    if not payload.claim_assumptions:
+        raise HTTPException(
+            status_code=400,
+            detail="claim_assumptions is required. Call /extract-claims first.",
+        )
+    claims = ClaimAssumptionOutput.model_validate(payload.claim_assumptions)
+    simulation = compute_investor_simulation(claims, payload.market_research)
     return {
         "final_verdict": build_final_verdict(simulation),
         "top_blockers": build_top_blockers(simulation),
@@ -525,6 +462,11 @@ async def investor_personas(video_input: VideoPitchInput) -> Dict[str, Any]:
     Returns investor personas and hard questions for a pitch transcript.
     """
     try:
+        if not video_input.transcript:
+            raise HTTPException(
+                status_code=400,
+                detail="transcript is required.",
+            )
         analysis = analyze_transcript(video_input.transcript)
         return {"investor_modes": analysis.investor_modes.model_dump()}
     except Exception:

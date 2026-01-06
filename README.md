@@ -98,6 +98,22 @@ uvicorn main:app --reload
 
 For server-side video/audio transcription, `ffmpeg` must be installed and available in PATH.
 
+### Background Worker (Celery + Redis)
+Start Redis:
+```bash
+redis-server
+```
+
+Start Celery worker (thread pool; avoids macOS fork issues):
+```bash
+celery -A jobs.celery_app.celery_app worker -P threads -c 4 -l info --without-gossip --without-mingle --without-heartbeat
+```
+
+Optional Redis URL override:
+```bash
+CELERY_REDIS_URL=redis://localhost:6379/0
+```
+
 6. Test the API with sample decks under ```examples``` folder:
 ```bash
 # Use any deck from the examples/ directory to test
@@ -175,6 +191,9 @@ curl -X POST "http://localhost:8000/analyze-complete" \
 - `POST /skepticism-flags`: Unsupported claim flags
 - `POST /final-verdict`: Verdict + blockers + next actions
 - `POST /investor-personas`: Investor persona questions (JSON body)
+- `GET /jobs/{job_id}`: Job status/result
+
+See `FRONTEND_INTEGRATION.md` for recommended async frontend flows and polling patterns.
 
 ### Request Details
 
@@ -182,6 +201,10 @@ curl -X POST "http://localhost:8000/analyze-complete" \
 - Content-Type: `multipart/form-data`
 - Body:
   - `file`: PDF file
+- Response:
+```json
+{ "job_id": "...", "status": "pending" }
+```
 - Example:
 ```bash
 curl -X POST "http://localhost:8000/analyze-complete" \
@@ -193,6 +216,10 @@ curl -X POST "http://localhost:8000/analyze-complete" \
 - Content-Type: `multipart/form-data`
 - Body:
   - `file`: PDF file
+- Response:
+```json
+{ "job_id": "...", "status": "pending" }
+```
 - Example:
 ```bash
 curl -X POST "http://localhost:8000/analyze-pitch-deck" \
@@ -255,6 +282,10 @@ curl -X POST "http://localhost:8000/chat-assistant" \
 - Content-Type: `multipart/form-data`
 - Body:
   - `file`: video/audio file (e.g., mp4, mov, mp3, wav)
+- Response:
+```json
+{ "job_id": "...", "status": "pending" }
+```
 - Example:
 ```bash
 curl -X POST "http://localhost:8000/analyze-video-pitch" \
@@ -281,6 +312,10 @@ curl -X POST "http://localhost:8000/analyze-video-pitch-text" \
 - Content-Type: `multipart/form-data`
 - Body:
   - `file`: video/audio file or PDF
+- Response:
+```json
+{ "job_id": "...", "status": "pending" }
+```
 - Example:
 ```bash
 curl -X POST "http://localhost:8000/extract-claims" \
@@ -346,6 +381,18 @@ curl -X POST "http://localhost:8000/score-startup" \
 {
   "claim_assumptions": { "...": "..." },
   "market_research": { "...": "..." }
+}
+```
+
+`GET /jobs/{job_id}`
+- Response:
+```json
+{
+  "id": "...",
+  "status": "pending|processing|completed|failed",
+  "progress": "optional",
+  "result": {},
+  "error": null
 }
 ```
 

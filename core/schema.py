@@ -52,12 +52,12 @@ class ExtractClaimsTextInput(BaseModel):
 
 
 class ScoreStartupInput(BaseModel):
-    claim_assumptions: ClaimAssumptionOutput
+    claim_assumptions: dict[str, Any] | None = None
     market_research: dict[str, Any] | None = None
 
 
 class InvestorSimulationInput(BaseModel):
-    claim_assumptions: ClaimAssumptionOutput
+    claim_assumptions: dict[str, Any] | None = None
     market_research: dict[str, Any] | None = None
 
 class ToolCall(TypedDict):

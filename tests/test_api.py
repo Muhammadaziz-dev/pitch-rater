@@ -32,20 +32,19 @@ class APITests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    @patch("main.transcribe_audio_bytes", return_value="We solve logistics for SMBs.")
-    @patch("main.video_pitch_agent")
-    def test_analyze_video_pitch_upload_success(self, video_pitch_agent, _transcriber):
-        video_pitch_agent.invoke.return_value = {
-            "analysis": {"filter_ai_score": 72, "investor_ready_status": "Investor ready"}
-        }
+    @patch("main.analyze_video_pitch_job")
+    @patch("main.create_job")
+    def test_analyze_video_pitch_upload_success(self, create_job, analyze_video_pitch_job):
+        create_job.return_value = type("Job", (), {"id": "job-123", "status": "pending"})()
         response = self.client.post(
             "/analyze-video-pitch",
             files={"file": ("pitch.mp3", io.BytesIO(b"audio"), "audio/mpeg")},
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["transcript"], "We solve logistics for SMBs.")
-        self.assertIn("analysis", data)
+        self.assertEqual(data["job_id"], "job-123")
+        self.assertEqual(data["status"], "pending")
+        analyze_video_pitch_job.apply_async.assert_called_once()
 
 
 if __name__ == "__main__":
