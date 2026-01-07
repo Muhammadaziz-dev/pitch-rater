@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      CELERY_REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+      # If you use Google Speech-to-Text inside Docker, mount your key and set this path:
+      # GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-sa.json
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+
+  worker:
+    build: .
+    command: >
+      celery -A jobs.celery_app.celery_app worker
+      -P threads -c 4 -l info
+      --without-gossip --without-mingle --without-heartbeat
+    environment:
+      CELERY_REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+      # GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-sa.json
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+

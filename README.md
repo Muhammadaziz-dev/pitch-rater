@@ -114,6 +114,44 @@ Optional Redis URL override:
 CELERY_REDIS_URL=redis://localhost:6379/0
 ```
 
+---
+
+## 🐳 Docker (API + Worker + Redis)
+
+This repo can run fully via Docker Compose (FastAPI + Celery worker + Redis).
+
+### 1) Configure `.env`
+Make sure `.env` includes at least:
+- `GOOGLE_API_KEY`
+- `TEXT_MODEL`, `VISION_MODEL`, `EMBEDDINGS_MODEL`
+- `TAVILY_API_KEY` (for market research)
+- `FIRECRAWL_API_KEY` (optional, for GitHub scraping)
+
+If you want **video/audio transcription** inside Docker, you must also provide:
+- `GOOGLE_APPLICATION_CREDENTIALS` (mounted inside container)
+
+### 2) Start services
+```bash
+docker compose up --build
+```
+
+Services:
+- API: `http://localhost:8000`
+- Redis: `localhost:6379`
+
+### 3) Using Google Speech-to-Text in Docker
+The Docker container cannot access files from your host unless you mount them. Two common options:
+
+**Option A (simple dev): mount a local JSON key**
+1. Put your key in a local folder like `./keys/gcp-sa.json` (do not commit it).
+2. In `docker-compose.yml`, set:
+   - `GOOGLE_APPLICATION_CREDENTIALS=/app/keys/gcp-sa.json`
+3. Mount it with a volume:
+   - `./keys:/app/keys`
+
+**Option B (recommended): use Docker secrets** (depends on your deployment platform)
+
+
 6. Test the API with sample decks under ```examples``` folder:
 ```bash
 # Use any deck from the examples/ directory to test
