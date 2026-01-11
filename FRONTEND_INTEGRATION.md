@@ -155,7 +155,7 @@ If you want personas without full video analysis:
 ## Claims Only (File) — Optional Flow
 If you want claims without full analysis:
 1) `POST /extract-claims` (multipart) → returns `job_id`
-2) Poll `GET /jobs/{job_id}` → use `job.result.claim_assumptions`
+2) Poll `GET /jobs/{job_id}` → use `job.result.claim_assumptions` and `job.result.investor_modes`
 3) Then call `/analyze-market-size` → `/score-startup`
 
 ---

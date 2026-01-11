@@ -15,6 +15,7 @@ from core.utils import (
 )
 from core.pitch_preprocess import preprocess_pitch_text
 from core.pitch_claims import extract_claims_from_text
+from agents.pitch_deck.helpers import extract_investor_personas
 
 
 def _b64_to_bytes(value: str) -> bytes:
@@ -113,12 +114,14 @@ def extract_claims_job(self, job_id: str, payload: dict):
             )
             preprocess = preprocess_pitch_text(transcript)
             claims = extract_claims_from_text(preprocess.normalized_text)
+            investor_modes = extract_investor_personas(preprocess.normalized_text)
             result = {
                 "source_type": "video",
                 "transcript": transcript,
                 "normalized_text": preprocess.normalized_text,
                 "sections": preprocess.sections,
                 "claim_assumptions": claims.model_dump(),
+                "investor_modes": investor_modes.model_dump(),
             }
             update_job(job_id, status="completed", progress="Claims extracted", result=result)
             return
@@ -133,12 +136,14 @@ def extract_claims_job(self, job_id: str, payload: dict):
             claims = response.get("claim_assumptions") or extract_claims_from_text(
                 preprocess.normalized_text
             ).model_dump()
+            investor_modes = extract_investor_personas(preprocess.normalized_text).model_dump()
 
             result = {
                 "source_type": "deck",
                 "normalized_text": preprocess.normalized_text,
                 "sections": preprocess.sections,
                 "claim_assumptions": claims,
+                "investor_modes": investor_modes,
             }
             update_job(job_id, status="completed", progress="Claims extracted", result=result)
             return

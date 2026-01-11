@@ -12,8 +12,10 @@ from core.prompts import (
     SUMMARIZE_TRACTION_PROMPT,
     SCORING_PROMPT,
     CLAIM_ASSUMPTION_PROMPT,
+    INVESTOR_PERSONAS_PROMPT,
 )
 from google.api_core.exceptions import ResourceExhausted
+from agents.video_pitch.models import InvestorModes
 from agents.pitch_deck.models import (
     CompanyOverview,
     FounderMarketFit,
@@ -115,4 +117,10 @@ def process_summary(summary_type: str, model, prompt: str, slide_content: list) 
 def extract_claims_from_text(source_text: str) -> ClaimAssumptionOutput:
     return language_model.with_structured_output(ClaimAssumptionOutput).invoke(
         CLAIM_ASSUMPTION_PROMPT.format(source=source_text)
+    )
+
+
+def extract_investor_personas(source_text: str) -> InvestorModes:
+    return language_model.with_structured_output(InvestorModes).invoke(
+        INVESTOR_PERSONAS_PROMPT.format(source=source_text)
     )

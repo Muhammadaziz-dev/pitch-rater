@@ -260,6 +260,22 @@ Instructions:
 Slides:
 """
 
+
+INVESTOR_PERSONAS_PROMPT = """
+You are an investor panel. Based on the pitch content below, produce hard questions for each persona.
+
+Return JSON with:
+{
+  \"seed_investor\": { \"hard_questions\": [\"...\"] },
+  \"vc_investor\": { \"hard_questions\": [\"...\"] },
+  \"angel_investor\": { \"hard_questions\": [\"...\"] },
+  \"demo_day\": { \"hard_questions\": [\"...\"] }
+}
+
+Pitch content:
+{source}
+"""
+
 VIDEO_PITCH_ANALYSIS_PROMPT = """
 You are an investor panel analyzing a startup pitch video transcript.
 
