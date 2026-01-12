@@ -69,7 +69,8 @@ app = FastAPI(
 
 # Configure CORS middleware
 default_origins = [
-    "*",
+    "https://www.filterai.uz",
+    "https://filterai.uz"
 ]
 cors_origins = (
     [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
