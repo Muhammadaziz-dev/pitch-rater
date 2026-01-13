@@ -1,11 +1,13 @@
 services:
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
   api:
     build: .
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
@@ -27,6 +29,7 @@ services:
       celery -A jobs.celery_app.celery_app worker
       -P threads -c 4 -l info
       --without-gossip --without-mingle --without-heartbeat
+    restart: unless-stopped
     environment:
       CELERY_REDIS_URL: redis://redis:6379/0
       REDIS_URL: redis://redis:6379/0
@@ -39,3 +42,25 @@ services:
       - .:/app
       - /root/gen-lang-client-0487624070-b58f997d4b98.json:/run/secrets/gcp-sa.json:ro
 
+
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/nginx/www:/var/www/certbot:ro
+      - ./deploy/nginx/certs:/etc/letsencrypt:ro
+    depends_on:
+      - api
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nginx/www:/var/www/certbot
+      - ./deploy/nginx/certs:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"

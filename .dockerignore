@@ -20,3 +20,6 @@ keys/
 examples/
 docs/
 
+
+deploy/nginx/certs
+deploy/nginx/www

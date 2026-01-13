@@ -908,3 +908,29 @@ pitch_deck/
 - Support for multiple decks comparison
 
 ---
+
+---
+
+## 🔐 Nginx + SSL (api.filterai.uz)
+
+This setup uses Nginx + Certbot inside Docker Compose.
+
+### 1) DNS
+Point `api.filterai.uz` to your server's public IP (A record).
+
+### 2) Start services
+```bash
+docker compose up --build -d
+```
+
+### 3) Request certificate
+```bash
+docker compose run --rm certbot certonly   --webroot -w /var/www/certbot   -d api.filterai.uz   --email your-email@example.com --agree-tos --no-eff-email
+```
+
+### 4) Reload Nginx
+```bash
+docker compose exec nginx nginx -s reload
+```
+
+Certificates will be stored in `deploy/nginx/certs`.
