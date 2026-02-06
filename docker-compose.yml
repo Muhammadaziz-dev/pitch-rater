@@ -21,8 +21,7 @@ services:
       - redis
     volumes:
       - .:/app
-      - /root/gen-lang-client-0487624070-b58f997d4b98.json:/run/secrets/gcp-sa.json:ro
-
+      -  /opt/credentials/service-account.json:/app/credentials/gcp.json:ro
   worker:
     build: .
     command: >
@@ -40,8 +39,7 @@ services:
       - redis
     volumes:
       - .:/app
-      - /root/gen-lang-client-0487624070-b58f997d4b98.json:/run/secrets/gcp-sa.json:ro
-
+      -  /opt/credentials/service-account.json:/app/credentials/gcp.json:ro
 
 
   nginx:
