@@ -139,6 +139,11 @@ Services:
 - API: `http://localhost:8000`
 - Redis: `localhost:6379`
 
+To expose the API on a different host port (e.g. port 80 on a server), set:
+```bash
+API_PORT=80 docker compose up --build
+```
+
 ### 3) Using Google Speech-to-Text in Docker
 The Docker container cannot access files from your host unless you mount them. Two common options:
 
@@ -911,26 +916,8 @@ pitch_deck/
 
 ---
 
-## 🔐 Nginx + SSL (api.filterai.uz)
+## 🔐 TLS / HTTPS
 
-This setup uses Nginx + Certbot inside Docker Compose.
+`docker-compose.yml` no longer includes the Nginx + Certbot reverse-proxy setup.
 
-### 1) DNS
-Point `api.filterai.uz` to your server's public IP (A record).
-
-### 2) Start services
-```bash
-docker compose up --build -d
-```
-
-### 3) Request certificate
-```bash
-docker compose run --rm certbot certonly   --webroot -w /var/www/certbot   -d api.filterai.uz   --email your-email@example.com --agree-tos --no-eff-email
-```
-
-### 4) Reload Nginx
-```bash
-docker compose exec nginx nginx -s reload
-```
-
-Certificates will be stored in `deploy/nginx/certs`.
+For production HTTPS, terminate TLS in your platform/load balancer (e.g. Cloudflare, AWS ALB, Fly.io, Render, etc.) and forward traffic to the API container on port `8000`.
